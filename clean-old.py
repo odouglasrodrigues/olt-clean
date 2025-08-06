@@ -41,7 +41,7 @@ def ListPonsAndGetNumberOfOfflineOnts(tn):
 def ConvertStringToTimestamp(str_date):
     try:
         datetime_str = str_date
-        datetime_object = datetime.strptime(datetime_str, '%d-%m-%Y %H:%M:%S')
+        datetime_object = datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S')
         return (int(datetime.timestamp(datetime_object)))
     except Exception as e:
         print("Não foi possviel converder a data para timestamp")
@@ -89,7 +89,7 @@ def GetListOfOfflineONT(tn, pon=str):
 
         tn.write(
             f"display ont info {ponStriped[0]} {ponStriped[1]} {ponStriped[2]} all\n".encode('utf-8'))
-        time.sleep(3)
+        time.sleep(8)
 
         return_ont_information = tn.read_until(
             'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
@@ -119,6 +119,7 @@ def GetUptimeOfOLT(tn):
             print(f"A OLT está ligada há {uptimeInDays} dias.")
             print("O Uptime da OLT é menor que 10 dias, o script foi interrompido.")
             exit()
+
         else:
             print(f"A OLT está ligada há {uptimeInDays} dias.")
             return uptimeInDays
@@ -134,7 +135,7 @@ def DeleteServicePortAndOnt(tn, sn):
 
     try:
         tn.write(f"display ont info by-sn {sn}\n".encode('utf-8'))
-        time.sleep(1)
+        time.sleep(2)
 
         return_ont_information = tn.read_until(
             'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()

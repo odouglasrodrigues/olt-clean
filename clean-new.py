@@ -21,8 +21,8 @@ totalOfflineBefore = 0
 totalOfflineAfter = 0
 
 def ListPonsAndGetNumberOfOfflineOnts(tn):
-    tn.write(b"display ont info 0 all | include port 0\n")
-    time.sleep(9)
+    tn.write(b"display ont info 0 all\n")
+    time.sleep(20)
 
     return_pon_informartion = tn.read_until(
         'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
@@ -39,13 +39,27 @@ def ListPonsAndGetNumberOfOfflineOnts(tn):
 
 
 def ConvertStringToTimestamp(str_date):
-    try:
-        datetime_str = str_date
-        datetime_object = datetime.strptime(datetime_str, '%d-%m-%Y %H:%M:%S')
-        return (int(datetime.timestamp(datetime_object)))
-    except Exception as e:
-        print("Não foi possviel converder a data para timestamp")
-        exit()
+    formatos_possiveis = [
+        '%Y-%m-%d %H:%M:%S',     # ex: 2025-08-06 14:22:00
+        '%d-%m-%Y %H:%M:%S',     # ex: 06-08-2025 14:22:00
+        '%Y/%m/%d %H:%M:%S',     # ex: 2025/08/06 14:22:00
+        '%d/%m/%Y %H:%M:%S',     # ex: 06/08/2025 14:22:00
+        #'%Y-%m-%d',              # ex: 2025-08-06
+        #'%d-%m-%Y',              # ex: 06-08-2025
+        #'%Y/%m/%d',              # ex: 2025/08/06
+        #'%d/%m/%Y',              # ex: 06/08/2025
+    ]
+
+    for formato in formatos_possiveis:
+        try:
+            datetime_object = datetime.strptime(str_date, formato)
+            return int(datetime_object.timestamp())
+        except ValueError:
+            continue
+
+    print(f"Não foi possível converter a data '{str_date}' para timestamp. Formato inválido.")
+    exit()
+
 
 
 def GetActualDateTime(tn):
@@ -64,21 +78,30 @@ def GetActualDateTime(tn):
         exit()
 
 def GetDateTimeOfONT(tn, sn):
-
     timestampOfOnu = 837849918
+    print("")
+    print(f"Verificando ONU {sn}")
     tn.write(
-        f"display ont info by-sn {sn} | include down time\n".encode('utf-8'))
-    time.sleep(3)
+        f"display ont info by-sn {sn}\n".encode('utf-8'))
+    time.sleep(5)
+  
 
     return_ont_information = tn.read_until(
-        'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+        'Tr069'.encode('utf-8'), 3).decode('utf-8').splitlines()
+    
+
     for linha in return_ont_information:
+
         if "down time" in linha:
+            linhatratada = linha.split(':')[1]
+            print("Horario da Ultima queda:", linhatratada)
+            
             if re.search(r'[0-9]+\-[0-9]+\-[0-9]+.[0-9]+:[0-9]+:[0-9]+.[0-9]+:[0-9]+', linha):
                 dateStringUtc = re.sub(r'.+:\s', "", linha)
                 dateString = re.sub(r'.[0-9]+:[0-9]+$', "", dateStringUtc)
                 timestampOfOnu = ConvertStringToTimestamp(dateString)
-
+                
+        
     return timestampOfOnu
 
 
@@ -97,6 +120,7 @@ def GetListOfOfflineONT(tn, pon=str):
             if 'offline' in linha:
                 offline_str = re.sub(r'0/\s', '0/', linha)
                 onusOffline.append(re.sub(r'\s+', ";", offline_str).split(';')[3])
+        # print(onusOffline)
         return onusOffline
     except Exception as e:
         print(f"Não Foi possivel obter as ONUs Offline da PON {pon}")
@@ -105,14 +129,20 @@ def GetListOfOfflineONT(tn, pon=str):
 
 def GetUptimeOfOLT(tn):
     uptimeInDays = 0
+
     try:
-        tn.write(b"display version\n")
+
+        tn.write("display version\n".encode('utf-8'))
+ 
         time.sleep(3)
+
 
         return_uptime_information = tn.read_until(
             'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+        
         for linha in return_uptime_information:
             if re.search(r'[Uu]ptime', linha):
+                # print(linha)
                 # Remove espacos iniciais, separa em um array e pega o valor de dias
                 uptimeInDays = int(re.sub(r"^\s+", "", linha).split(' ')[2])
         if uptimeInDays < 10:
@@ -124,6 +154,7 @@ def GetUptimeOfOLT(tn):
             return uptimeInDays
     except Exception as e:
         print("Não Foi possivel obter o Uptime da OLT")
+        print(e)
         exit()
 
 
@@ -147,7 +178,7 @@ def DeleteServicePortAndOnt(tn, sn):
         fspSplited = fsp.split('/')
 
         tn.write(
-            f"display service-port port {fsp} ont {ontId} | include common\n".encode('utf-8'))
+            f"display service-port port {fsp} ont {ontId}\n".encode('utf-8'))
         time.sleep(1)
 
         return_serviceport_information = tn.read_until(
@@ -168,6 +199,9 @@ def DeleteServicePortAndOnt(tn, sn):
         time.sleep(.5)
 
         print(f"Sucesso! - ONU Excluida - SN: {sn}")
+        print("")
+        print("Lavínia não faz nada, mas apagou mais uma ONU! ❤️")
+        print("")
         return
 
     except Exception as e:
