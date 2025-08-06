@@ -81,7 +81,6 @@ def GetDateTimeOfONT(tn, sn):
 
     return timestampOfOnu
 
-
 def GetListOfOfflineONT(tn, pon=str):
     try:
         ponStriped = pon.split('/')
