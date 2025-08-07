@@ -21,7 +21,7 @@ totalOfflineBefore = 0
 totalOfflineAfter = 0
 tempoEstimado = 0
 tempoTotal= 0
-segundos_por_onu = 3
+segundos_por_onu = 4
 prompt_final = "Control flag"
 
 def ListPonsAndGetNumberOfOfflineOnts(tn):
@@ -112,10 +112,12 @@ def GetListOfOfflineONT(tn, pon=str):
     try:
         ponStriped = pon.split('/')
         onusOffline = []
-
+        
+        tn.read_very_eager()
         tn.write(
             f"display ont info {ponStriped[0]} {ponStriped[1]} {ponStriped[2]} all\n".encode('utf-8'))
-      
+        time.sleep(0.5)
+        print(f"[INFO] Obtendo ONUs Offline da PON {pon}")
         return_ont_information = tn.read_until(
             prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
         for linha in return_ont_information:
