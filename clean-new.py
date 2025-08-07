@@ -26,10 +26,10 @@ prompt_final = "Control flag"
 
 def ListPonsAndGetNumberOfOfflineOnts(tn):
     tn.write(b"display ont info 0 all\n")
-    time.sleep(20)
+    # time.sleep(20)
 
     return_pon_informartion = tn.read_until(
-        'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+        prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
 
     for linha in return_pon_informartion:
         if "In port " in linha:
