@@ -22,6 +22,7 @@ totalOfflineAfter = 0
 tempoEstimado = 0
 tempoTotal= 0
 segundos_por_onu = 8
+prompt_final = "Control flag"
 
 def ListPonsAndGetNumberOfOfflineOnts(tn):
     tn.write(b"display ont info 0 all\n")
@@ -123,7 +124,6 @@ def GetListOfOfflineONT(tn, pon=str):
             if 'offline' in linha:
                 offline_str = re.sub(r'0/\s', '0/', linha)
                 onusOffline.append(re.sub(r'\s+', ";", offline_str).split(';')[3])
-        # print(onusOffline)
         return onusOffline
     except Exception as e:
         print(f"[ERRO] Não Foi possivel obter as ONUs Offline da PON {pon}")
@@ -211,7 +211,40 @@ def DeleteServicePortAndOnt(tn, sn):
         print(f"[ERRO] Falha! - Erro ao excluir ONU - SN: {sn}")
         return
 
+def GetOLTName(tn):
+        tn.write(
+            f"display current-configuration | include sysname\n".encode('utf-8'))
+        time.sleep(2)
+        
+        return_sysname = tn.read_until(
+            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
 
+        for linhasysname in return_sysname:
+            if "include sysname" in linhasysname:
+                continue
+            if "sysname" in linhasysname:
+                sysname = linhasysname.removeprefix(" ").split(" ")[1].replace(" ", "")
+                print(f"[INFO] Conectado na OLT: {sysname}")
+                global prompt_final
+                prompt_final = f"{sysname}(config)#"
+                return sysname
+        
+
+def GetOLTVersion(tn):
+        tn.write(
+            f"display version\n".encode('utf-8'))
+        time.sleep(1)
+        
+        return_version = tn.read_until(
+            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+
+        for linhaversion in return_version:
+            if "VERSION" in linhaversion:
+                version = linhaversion.split(":")[1].replace(" ", "")
+                print(f"[INFO] Versão da OLT: {version}")
+                return version
+                
+                
 def ConnectOnOLTWithTelnet(ip, user, password, port, totalOfflineBefore, totalOfflineAfter):
     inicio = time.time()
     try:
@@ -250,7 +283,10 @@ def ConnectOnOLTWithTelnet(ip, user, password, port, totalOfflineBefore, totalOf
             time.sleep(0.3)
 
         print("[INFO] Login na OLT realizado com sucesso!")
-        print("[INFO] Verificando Uptime da OLT...")
+        
+        print("[INFO] Obtendo informações da OLT...")
+        GetOLTName(tn)
+        GetOLTVersion(tn)
         GetUptimeOfOLT(tn)
 
         print("[INFO] Obtendo a data atual da OLT...")
