@@ -21,12 +21,11 @@ totalOfflineBefore = 0
 totalOfflineAfter = 0
 tempoEstimado = 0
 tempoTotal= 0
-segundos_por_onu = 8
+segundos_por_onu = 3
 prompt_final = "Control flag"
 
 def ListPonsAndGetNumberOfOfflineOnts(tn):
     tn.write(b"display ont info 0 all\n")
-    # time.sleep(20)
 
     return_pon_informartion = tn.read_until(
         prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
@@ -69,10 +68,9 @@ def ConvertStringToTimestamp(str_date):
 def GetActualDateTime(tn):
     try:
         tn.write(b"display time\n")
-        time.sleep(.3)
-
+        
         return_clock_information = tn.read_until(
-            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+            prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
         for linha in return_clock_information:
             if re.search(r'[0-9]+\-[0-9]+\-[0-9]+.[0-9]+:[0-9]+:[0-9]+.[0-9]+:[0-9]+', linha) and not re.search(r'[A-Za-z]', linha):
                 actualDate = re.sub(r'.[0-9]+:[0-9]+$',"",linha)
@@ -85,19 +83,19 @@ def GetDateTimeOfONT(tn, sn):
     timestampOfOnu = 837849918
     print("")
     print(f"[INFO] Verificando ONU {sn}")
+    tn.read_very_eager()
     tn.write(
         f"display ont info by-sn {sn}\n".encode('utf-8'))
-    time.sleep(5)
-  
-
+    time.sleep(0.5)
+    
     return_ont_information = tn.read_until(
-        'Tr069'.encode('utf-8'), 3).decode('utf-8').splitlines()
+        prompt_final.encode('utf-8'), timeout=20).decode('utf-8').splitlines()
     
 
     for linha in return_ont_information:
-
+    
         if "down time" in linha:
-            linhatratada = linha.split(':')[1]
+            linhatratada = re.sub(r'.+:\s', "", linha)
             print("[INFO] Horario da Ultima queda:", linhatratada)
             
             if re.search(r'[0-9]+\-[0-9]+\-[0-9]+.[0-9]+:[0-9]+:[0-9]+.[0-9]+:[0-9]+', linha):
@@ -105,8 +103,9 @@ def GetDateTimeOfONT(tn, sn):
                 dateString = re.sub(r'.[0-9]+:[0-9]+$', "", dateStringUtc)
                 timestampOfOnu = ConvertStringToTimestamp(dateString)
                 
-        
+                return timestampOfOnu
     return timestampOfOnu
+                
 
 
 def GetListOfOfflineONT(tn, pon=str):
@@ -116,10 +115,9 @@ def GetListOfOfflineONT(tn, pon=str):
 
         tn.write(
             f"display ont info {ponStriped[0]} {ponStriped[1]} {ponStriped[2]} all\n".encode('utf-8'))
-        time.sleep(3)
-
+      
         return_ont_information = tn.read_until(
-            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+            prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
         for linha in return_ont_information:
             if 'offline' in linha:
                 offline_str = re.sub(r'0/\s', '0/', linha)
@@ -137,15 +135,11 @@ def GetUptimeOfOLT(tn):
 
         tn.write("display version\n".encode('utf-8'))
  
-        time.sleep(3)
-
-
         return_uptime_information = tn.read_until(
-            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+            prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
         
         for linha in return_uptime_information:
             if re.search(r'[Uu]ptime', linha):
-                # print(linha)
                 # Remove espacos iniciais, separa em um array e pega o valor de dias
                 uptimeInDays = int(re.sub(r"^\s+", "", linha).split(' ')[2])
         if uptimeInDays < 10:
@@ -162,30 +156,36 @@ def GetUptimeOfOLT(tn):
 
 
 def DeleteServicePortAndOnt(tn, sn):
-    ontId = str
-    fsp = str
-    srvPort = str
+    ontId = ""
+    fsp = ""
+    srvPort = ""
 
     try:
+        tn.read_very_eager()  # limpa o buffer antes de enviar qualquer comando
         tn.write(f"display ont info by-sn {sn}\n".encode('utf-8'))
-        time.sleep(1)
+        time.sleep(.5)
 
         return_ont_information = tn.read_until(
-            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+            prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
         for linha in return_ont_information:
             if "F/S/P" in linha:
                 fsp = linha.split(":")[1].replace(" ", "")
             if "ONT-ID" in linha:
                 ontId = linha.split(":")[1].replace(" ", "")
+            if fsp and ontId:  
+                print(f"[INFO] FSP: {fsp} - ONT-ID: {ontId}") ## Remover
+                break
+        
 
         fspSplited = fsp.split('/')
 
+        tn.read_very_eager()  # limpa o buffer antes de enviar qualquer comando
         tn.write(
             f"display service-port port {fsp} ont {ontId}\n".encode('utf-8'))
-        time.sleep(1)
+        time.sleep(.5)
 
         return_serviceport_information = tn.read_until(
-            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+            prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
 
         for linhaService in return_serviceport_information:
             if "gpon" in linhaService:
@@ -197,18 +197,18 @@ def DeleteServicePortAndOnt(tn, sn):
         time.sleep(.5)
         tn.write(f"ont delete {fspSplited[2]} {ontId}\n".encode('utf-8'))
         time.sleep(.5)
-
         tn.write(f"quit\n".encode('utf-8'))
         time.sleep(.5)
-
+       
         print(f"[INFO] Sucesso! - ONU Excluida - SN: {sn}")
-        print("")
-        print("Lavínia não faz nada, mas apagou mais uma ONU! ❤️")
-        print("")
+        # print("Lavínia não faz nada, mas apagou mais uma ONU! ❤️")
+
         return
 
     except Exception as e:
         print(f"[ERRO] Falha! - Erro ao excluir ONU - SN: {sn}")
+        print(e)
+        print("")
         return
 
 def GetOLTName(tn):
@@ -233,10 +233,9 @@ def GetOLTName(tn):
 def GetOLTVersion(tn):
         tn.write(
             f"display version\n".encode('utf-8'))
-        time.sleep(1)
         
         return_version = tn.read_until(
-            'Control flag'.encode('utf-8'), 3).decode('utf-8').splitlines()
+            prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
 
         for linhaversion in return_version:
             if "VERSION" in linhaversion:
