@@ -67,7 +67,11 @@ def ConvertStringToTimestamp(str_date):
 
 def GetActualDateTime(tn):
     try:
+        time.sleep(0.5)
+        tn.read_very_eager()
         tn.write(b"display time\n")
+        time.sleep(0.5)
+        actualDate = ""
         
         return_clock_information = tn.read_until(
             prompt_final.encode('utf-8'), timeout=30).decode('utf-8').splitlines()
@@ -77,6 +81,7 @@ def GetActualDateTime(tn):
         return re.sub(r"^\s+", "", actualDate)
     except Exception as e:
         print("[ERRO] Não foi possivel obter a data atual da OLT")
+        print(e)
         exit()
 
 def GetDateTimeOfONT(tn, sn):
@@ -134,7 +139,7 @@ def GetUptimeOfOLT(tn):
     uptimeInDays = 0
 
     try:
-
+        tn.read_very_eager()
         tn.write("display version\n".encode('utf-8'))
  
         return_uptime_information = tn.read_until(
