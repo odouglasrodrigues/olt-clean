@@ -19,10 +19,12 @@ from datetime import datetime
 pons = []
 totalOfflineBefore = 0
 totalOfflineAfter = 0
+totalDeleted = 0
 tempoEstimado = 0
 tempoTotal= 0
-segundos_por_onu = 4
+segundos_por_onu = 5
 prompt_final = "Control flag"
+
 
 def ListPonsAndGetNumberOfOfflineOnts(tn):
     tn.write(b"display ont info 0 all\n")
@@ -206,7 +208,8 @@ def DeleteServicePortAndOnt(tn, sn):
         time.sleep(.5)
         tn.write(f"quit\n".encode('utf-8'))
         time.sleep(.5)
-       
+        global totalDeleted
+        totalDeleted = totalDeleted + 1
         print(f"[INFO] Sucesso! - ONU Excluida - SN: {sn}")
         # print("Lavínia não faz nada, mas apagou mais uma ONU! ❤️")
 
@@ -341,10 +344,19 @@ def ConnectOnOLTWithTelnet(ip, user, password, port, totalOfflineBefore, totalOf
         tn.write(b"exit\n")
         time.sleep(.3)
         tn.close()
+        print("[INFO] Comandos executados com sucesso, desconectando da OLT...")
         fim = time.time()
         tempoTotal = int(fim - inicio)
         minutos_totais = tempoTotal // 60
         segundos_totais = tempoTotal % 60
+        print("")
+        print("")
+        print(f"[INFO] Remoção de ONUs concluída!")
+        print(f"[INFO] Total de ONUs removidas: {totalDeleted}")
+        print(f"[INFO] Total de ONUs Offline antes: {totalOfflineBefore}")
+        totalOfflineAfter = totalOfflineBefore - totalDeleted
+        print(f"[INFO] Total de ONUs Offline depois: {totalOfflineAfter}")
+        print(f"[INFO] Tempo estimado de execução: {minutos_estimados} min {segundos_restantes} seg")
         print(f"[INFO] Tempo total de execução: {minutos_totais} min {segundos_totais} seg")
         return
     
